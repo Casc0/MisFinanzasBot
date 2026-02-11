@@ -1,8 +1,5 @@
-# Usamos la imagen oficial de n8n
+# Usamos la imagen oficial
 FROM n8nio/n8n:latest
 
-# Exponemos el puerto por defecto
+# Exponemos el puerto (Railway lo mapeará automáticamente)
 EXPOSE 5678
-
-# Comando de inicio
-CMD ["n8n", "start"]
