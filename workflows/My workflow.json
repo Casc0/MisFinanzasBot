@@ -1,0 +1,988 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {
+          "download": true,
+          "chatIds": "YOUR_TELEGRAM_CHAT_ID"
+        }
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -304,
+        -48
+      ],
+      "id": "4058da8e-40cb-46f7-b8d5-ba8bf14be348",
+      "name": "Mensaje de Telegram",
+      "webhookId": "bf39e511-1454-4707-9591-43fe8914e348",
+      "credentials": {
+        "telegramApi": {
+          "id": "OEwiGakp2CZoSuki",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Mis Finanzas",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1549107837,
+          "mode": "list",
+          "cachedResultName": "Chat_Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/18BRFhMCQUIHLtdAJPqOy29pYn8NqYdRnDqU9HLrz4Ns/edit#gid=1549107837"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "chat_id",
+              "lookupValue": "={{ $json.message.from.id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -64,
+        128
+      ],
+      "id": "0230a0b1-65da-4d0b-b42f-5468fa0988bb",
+      "name": "Buscar historial",
+      "credentials": {
+        "googleApi": {
+          "id": "Z1Nxbg4136nBZ5KU",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const historia = $input.all().map(item => {\n  return `MensajeUsuario: ${item.json.mensaje_usuario || ''}\\nRespuestaAsistente: ${item.json.respuesta || ''}`;}).join('\\n---\\n');\n\nreturn { json: { historial: historia } };                 "
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        128
+      ],
+      "id": "4e30437c-1763-4895-8698-33097a62dacd",
+      "name": "XLSX -> JSON"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $binary.data.mimeType }}",
+                    "rightValue": "image",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "id": "a5ae7574-b1e3-48ab-81e5-bd85f8b244ee"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "image"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "39822438-825d-4385-baed-496f03c670c5",
+                    "leftValue": "={{ $binary.data.mimeType }}",
+                    "rightValue": "pdf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "pdf"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -176,
+        -464
+      ],
+      "id": "c78cde48-13e8-45d4-af06-17d02d66d31d",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Input actual:  {{ $json.text }}\n\n",
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "Eres un experto en extracción de datos y estructuración JSON. Vas a recibir información de tres posibles fuentes (Texto directo, OCR de una imagen o Texto de un PDF) en forma de un json. Tu trabajo es extraer los datos clave.\n\nCampos a extraer:\n- \"concepto\": (Concepto de la transaccion).\n- \"total\": (Número decimal, usa punto para decimales. Solo el número).\n- \"categoria\": (Elige una: Alimentación, Transporte, Servicios, Oficina, Varios).\n- \"descripcion\": (Resumen breve del ítem).\n\nInstrucciones Críticas:\n1. Si un campo no se encuentra, devuélvelo como null (no inventes datos).\n2. Si recibes texto basura o ilegible del OCR, intenta rescatar el monto y la fecha.\n3. Tu salida debe ser ÚNICAMENTE el bloque JSON. Sin markdown, sin explicaciones previas.",
+          "passthroughBinaryImages": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        608,
+        -208
+      ],
+      "id": "d5d248e6-a6a3-458c-8d7f-858eeb751b09",
+      "name": "Extractor"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        96,
+        -448
+      ],
+      "id": "484fcc35-c0d3-4baf-b5c7-59c0c767eb77",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "text": "Eres un Analista de Datos Visuales de Alta Precisión. Tu única función es transcribir y catalogar cada elemento textual y contextual presente en la imagen proporcionada. Tu salida será utilizada como input crudo para un motor de procesamiento lógico posterior, por lo que la fidelidad es tu prioridad absoluta.\nProtocolo de Comportamiento\n\n    Neutralidad Absoluta: No interpretes intenciones, no resumas contenido y no saques conclusiones. Si ves una factura, no digas \"es una factura de luz\"; extrae los campos y valores.\n\n    Fidelidad Textual: Transcribe el texto exactamente como aparece (OCR de alta fidelidad), respetando mayúsculas, minúsculas y puntuación.\n\n    Mapeo Estructural: Identifica la jerarquía visual (encabezados, tablas, notas al pie, logotipos).\n\n    Contexto Espacial: Indica la ubicación relativa de los elementos si es relevante para la estructura (ej. \"Columna izquierda\", \"Recuadro superior derecho\").\n\n    Silencio Interpretativo: Si algo es ambiguo o ilegible, etiquétalo como [Ilegible] o [Ambiguo]. No intentes adivinar.\n\nInstrucciones de Salida (Estructura de Datos)\n\nOrganiza la información de la siguiente manera:\n\n    Metadatos de la Imagen: Tipo de documento (si es evidente), orientación y calidad visual.\n\n    Transcripción Integral: Todo el texto detectado, organizado por bloques lógicos.\n\n    Elementos Gráficos: Descripción técnica de logos, sellos, firmas, códigos QR o de barras, y fotografías presentes (sin interpretar su significado, solo su existencia y posición).\n\n    Tablas y Listas: Reconstrucción fiel de cualquier estructura tabular detectada.\n\nRestricciones\n\n    PROHIBIDO añadir comentarios personales como \"Parece que...\".\n\n    PROHIBIDO corregir errores ortográficos del original.\n\n    PROHIBIDO omitir datos que consideres \"irrelevantes\". Todo es relevante para el siguiente agente.",
+        "inputType": "binary",
+        "simplify": false,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        96,
+        -608
+      ],
+      "id": "2fa11efd-b4a8-4765-884d-59b0db89759b",
+      "name": "Analyze an image",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "xoWVMG4t2BguPdXM",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Input actual:  {{ $json.output }}\n\nHistorial de la conversación: {{ $json.historial }}",
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "Role: Controller de Calidad de Datos & UX Financial Assistant. Objective: Validar y estructurar datos de gastos provenientes de lenguaje natural para transformarlos en un JSON procesable.\n\nRules & Logic:\n\n    Data Validation: El objetivo es obtener tres campos obligatorios: monto total (number), concepto (string) y categoria (string).\n\n    Incomplete Data (The \"Traductor\" Phase): Si falta cualquiera de los tres campos, no generes el JSON. En su lugar, solicita el dato faltante usando un tono empático, directo y con jerga argentina moderada (ej: \"che\", \"laburo\", \"guita\", \"dolió\").\n\n    Complete Data (The \"Controller\" Phase): Si los tres campos están presentes, responde únicamente con un objeto JSON estructurado que incluya un flag de status: \"complete\".\n\nOutput Format: Responde con los datos y una flag que marque complete, si se encontraron los tres campos. Sino devolver incomplete y una respuesta sobre lo que falto para darle al usuario\n\nFormato de la Categoria: Según la categoria que llegue del anterior agente, intentar clasificarla en una de las siguientes:  [Vivienda y Servicios, Supermercado y Alimentos, Transporte, Salud y Bienestar, Ocio, Compras, Educación, Ingreso, Ahorro e Inversión]\n\nFormato del monto total: Si es un Egreso, hacerlo un numero negativo. Si es un Ingreso, dejarlo positivo",
+          "passthroughBinaryImages": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        928,
+        144
+      ],
+      "id": "16f9107b-2b19-4ed8-b7ef-6665395650c0",
+      "name": "Verificador"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c020f5fc-474a-4b56-88ea-622ca25beff3",
+              "name": "datos_parseados",
+              "value": "={{ JSON.parse($json.output.replace(/```json\\n?|```/g, \"\")) }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1200,
+        -160
+      ],
+      "id": "22efa866-573b-496d-89cc-f04b35fa86fe",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "18BRFhMCQUIHLtdAJPqOy29pYn8NqYdRnDqU9HLrz4Ns",
+          "mode": "list",
+          "cachedResultName": "Mis Finanzas",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/18BRFhMCQUIHLtdAJPqOy29pYn8NqYdRnDqU9HLrz4Ns/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1549107837,
+          "mode": "list",
+          "cachedResultName": "Chat_Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/18BRFhMCQUIHLtdAJPqOy29pYn8NqYdRnDqU9HLrz4Ns/edit#gid=1549107837"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "chat_id": "={{ $('Mensaje de Telegram').item.json.message.from.id }}",
+            "mensaje_usuario": "=Información recabada del usuario: \n\nMonto: {{ $('Edit Fields').item.json.datos_parseados.monto_total }}\n\nConcepto: {{ $('Si esta completo o si falta').item.json.datos_parseados.concepto }}\n\nCategoria: {{ $('Si esta completo o si falta').item.json.datos_parseados.categoria }}",
+            "respuesta": "={{ $('Edit Fields').item.json.datos_parseados.status == \"complete\" ? \"Carga Finalizada\" : $json.result.text }}",
+            "timestamp": "={{ $now.toFormat('HH:mm - dd/MM/yyyy') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "mensaje_usuario",
+              "displayName": "mensaje_usuario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "respuesta",
+              "displayName": "respuesta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1808,
+        112
+      ],
+      "id": "31284ad0-f9f1-4b5c-9383-401edbd81325",
+      "name": "Cargar el Log",
+      "credentials": {
+        "googleApi": {
+          "id": "Z1Nxbg4136nBZ5KU",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Mensaje de Telegram').item.json.message.from.id }}",
+        "text": "={{ $json.datos_parseados.status == \"complete\"? \"Cargado!\" : $json.datos_parseados.message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1600,
+        112
+      ],
+      "id": "0c93c6d4-efe7-4df1-a46b-8b7e902ca6f8",
+      "name": "Confirmación/Respuesta con lo que Falta",
+      "webhookId": "dccc147a-abc0-467d-934f-605e414e720b",
+      "credentials": {
+        "telegramApi": {
+          "id": "OEwiGakp2CZoSuki",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "18BRFhMCQUIHLtdAJPqOy29pYn8NqYdRnDqU9HLrz4Ns",
+          "mode": "list",
+          "cachedResultName": "Mis Finanzas",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/18BRFhMCQUIHLtdAJPqOy29pYn8NqYdRnDqU9HLrz4Ns/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Transacciones",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/18BRFhMCQUIHLtdAJPqOy29pYn8NqYdRnDqU9HLrz4Ns/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Fecha": "={{ $now.toFormat('dd/MM/yyyy') }}",
+            "Monto": "={{ $json.datos_parseados.monto_total }}$",
+            "Concepto": "={{ $json.datos_parseados.concepto }}",
+            "Categoria": "={{ $json.datos_parseados.categoria }}",
+            "Tipo": "={{  $json.datos_parseados.monto_total > 0 ? \"Ingreso\" : \"Egreso\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Fecha",
+              "displayName": "Fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Concepto",
+              "displayName": "Concepto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Monto",
+              "displayName": "Monto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Categoria",
+              "displayName": "Categoria",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Tipo",
+              "displayName": "Tipo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Nueva Categoría",
+              "displayName": "Nueva Categoría",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1408,
+        -32
+      ],
+      "id": "c98a1794-bcb9-457e-a515-a9bcf6626ac6",
+      "name": "Cargar la nueva entrada",
+      "credentials": {
+        "googleApi": {
+          "id": "Z1Nxbg4136nBZ5KU",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a37d999f-edb9-4c2c-bcfd-051fcf67e545",
+              "leftValue": "={{ $json.datos_parseados.status }}",
+              "rightValue": "complete",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1232,
+        96
+      ],
+      "id": "b59d062c-5d30-41e2-84bd-d2d3e58adb22",
+      "name": "Si esta completo o si falta"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {
+          "includeUnpaired": true
+        }
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        752,
+        160
+      ],
+      "id": "fb724946-20de-4349-b47c-29776c025fe1",
+      "name": "Información extraida + Historial"
+    },
+    {
+      "parameters": {
+        "maxItems": 5,
+        "keep": "lastItems"
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        128,
+        128
+      ],
+      "id": "28ff7c31-f177-4b16-a223-a65040663c43",
+      "name": "Limitar a las ultimas 5"
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        608,
+        -432
+      ],
+      "id": "bf49004c-c8e5-45c7-8ec1-76ce14814a8a",
+      "name": "Recibir Texto Raw"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "49d00c04-e251-480a-82e9-46fddec07dc9",
+              "name": "text",
+              "value": "=Caption del usuario: {{ $('Mensaje de Telegram').item.json.message.caption ? $('Mensaje de Telegram').item.json.message.caption : \"no habia caption\" }}\n\nTexto extraido de la imagen: \n{{ $json.candidates[0].content.parts[0].text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        304,
+        -608
+      ],
+      "id": "5009ca25-bb95-4e58-8dc3-c50d0400654d",
+      "name": "Simplificar Imagen"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "49d00c04-e251-480a-82e9-46fddec07dc9",
+              "name": "text",
+              "value": "=Texto extraido del pdf: \n{{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        304,
+        -448
+      ],
+      "id": "d3aeac35-b7ce-4021-b97f-2a41e90761f7",
+      "name": "Simplificar PDF"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "49d00c04-e251-480a-82e9-46fddec07dc9",
+              "name": "text",
+              "value": "={{ $json.message.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        304,
+        -272
+      ],
+      "id": "6360a95a-ed81-45ef-b3b8-1ebe815e4969",
+      "name": "Simplificar Texto"
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        448,
+        -112
+      ],
+      "id": "0eb440dd-077c-4957-a6a7-9da09c6cba2d",
+      "name": "Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "LpFtxgi2jhpiSvZw",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        576,
+        -16
+      ],
+      "id": "b01bc187-9492-4bf6-99e9-4542e5f3af9d",
+      "name": "Backup Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "xoWVMG4t2BguPdXM",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1008,
+        368
+      ],
+      "id": "ef5b63e7-7026-4eaf-8d14-de80efe29cea",
+      "name": "Backup Model 2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "xoWVMG4t2BguPdXM",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        832,
+        368
+      ],
+      "id": "63120092-8c5e-466b-9944-e7c5eebb227c",
+      "name": "Model 2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "LpFtxgi2jhpiSvZw",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Mensaje de Telegram": {
+      "main": [
+        [
+          {
+            "node": "Buscar historial",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar historial": {
+      "main": [
+        [
+          {
+            "node": "Limitar a las ultimas 5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "XLSX -> JSON": {
+      "main": [
+        [
+          {
+            "node": "Información extraida + Historial",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Analyze an image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Simplificar Texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Simplificar PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze an image": {
+      "main": [
+        [
+          {
+            "node": "Simplificar Imagen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extractor": {
+      "main": [
+        [
+          {
+            "node": "Información extraida + Historial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificador": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Si esta completo o si falta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirmación/Respuesta con lo que Falta": {
+      "main": [
+        [
+          {
+            "node": "Cargar el Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cargar la nueva entrada": {
+      "main": [
+        [
+          {
+            "node": "Confirmación/Respuesta con lo que Falta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Si esta completo o si falta": {
+      "main": [
+        [
+          {
+            "node": "Cargar la nueva entrada",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Confirmación/Respuesta con lo que Falta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Información extraida + Historial": {
+      "main": [
+        [
+          {
+            "node": "Verificador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limitar a las ultimas 5": {
+      "main": [
+        [
+          {
+            "node": "XLSX -> JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recibir Texto Raw": {
+      "main": [
+        [
+          {
+            "node": "Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simplificar Imagen": {
+      "main": [
+        [
+          {
+            "node": "Recibir Texto Raw",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simplificar PDF": {
+      "main": [
+        [
+          {
+            "node": "Recibir Texto Raw",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Simplificar Texto": {
+      "main": [
+        [
+          {
+            "node": "Recibir Texto Raw",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Extractor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Backup Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Extractor",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Backup Model 2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Verificador",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Model 2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Verificador",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "f033fad5-daaa-4acb-8b59-f650c892d11c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "86f8033be24f98103c13bf0c67bcc19e741c842ec4a336bf8ca7058c44176a69"
+  },
+  "id": "X5z8fQplTCcBUsY4UdWdj",
+  "tags": []
+}
